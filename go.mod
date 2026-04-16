@@ -1,4 +1,4 @@
-module github.com/example/go-backend-boilerplate
+module github.com/gustavoz65/go-backend-boilerplate
 
 go 1.26.1
 
