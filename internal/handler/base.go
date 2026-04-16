@@ -7,9 +7,9 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/newrelic/go-agent/v3/newrelic"
 
-	"github.com/example/go-backend-boilerplate/internal/middleware"
-	"github.com/example/go-backend-boilerplate/internal/server"
-	"github.com/example/go-backend-boilerplate/internal/validation"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/middleware"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/server"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/validation"
 )
 
 type Handler struct {

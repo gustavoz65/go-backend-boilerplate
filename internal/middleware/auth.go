@@ -7,9 +7,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 
-	"github.com/example/go-backend-boilerplate/internal/errs"
-	"github.com/example/go-backend-boilerplate/internal/model"
-	"github.com/example/go-backend-boilerplate/internal/service"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/errs"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/model"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/service"
 )
 
 const (

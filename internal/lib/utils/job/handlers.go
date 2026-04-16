@@ -8,8 +8,8 @@ import (
 	"github.com/hibiken/asynq"
 	zerolog "github.com/rs/zerolog"
 
-	"github.com/example/go-backend-boilerplate/internal/config"
-	"github.com/example/go-backend-boilerplate/internal/lib/email"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/config"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/lib/email"
 )
 
 var emailClient *email.Client

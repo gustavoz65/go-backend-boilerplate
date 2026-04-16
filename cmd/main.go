@@ -7,11 +7,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/example/go-backend-boilerplate/internal/config"
-	"github.com/example/go-backend-boilerplate/internal/database"
-	"github.com/example/go-backend-boilerplate/internal/logger"
-	"github.com/example/go-backend-boilerplate/internal/router"
-	"github.com/example/go-backend-boilerplate/internal/server"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/config"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/database"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/logger"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/router"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/server"
 )
 
 func main() {

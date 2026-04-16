@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
-	models "github.com/example/go-backend-boilerplate/internal/model"
+	models "github.com/gustavoz65/go-backend-boilerplate/backend/internal/model"
 )
 
 type Filter struct {

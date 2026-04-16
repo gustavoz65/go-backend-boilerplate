@@ -7,9 +7,9 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog"
 
-	"github.com/example/go-backend-boilerplate/internal/errs"
-	"github.com/example/go-backend-boilerplate/internal/repository"
-	"github.com/example/go-backend-boilerplate/internal/service"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/errs"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/repository"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/service"
 )
 
 // ErrorHandler converte erros em respostas HTTP estruturadas

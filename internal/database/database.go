@@ -11,7 +11,7 @@ import (
 
 	"github.com/rs/zerolog"
 
-	"github.com/example/go-backend-boilerplate/internal/config"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/config"
 
 	_ "github.com/go-sql-driver/mysql"
 )

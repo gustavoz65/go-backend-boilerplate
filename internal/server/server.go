@@ -9,11 +9,11 @@ import (
 	"github.com/redis/go-redis/v9"
 	zerolog "github.com/rs/zerolog"
 
-	"github.com/example/go-backend-boilerplate/internal/config"
-	"github.com/example/go-backend-boilerplate/internal/database"
-	"github.com/example/go-backend-boilerplate/internal/lib/firebase"
-	"github.com/example/go-backend-boilerplate/internal/lib/utils/job"
-	"github.com/example/go-backend-boilerplate/internal/logger"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/config"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/database"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/lib/firebase"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/lib/utils/job"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/logger"
 )
 
 type Server struct {

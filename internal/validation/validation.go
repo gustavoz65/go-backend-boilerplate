@@ -7,7 +7,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 
-	"github.com/example/go-backend-boilerplate/internal/errs"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/errs"
 )
 
 var validate *validator.Validate

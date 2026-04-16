@@ -8,8 +8,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 
-	"github.com/example/go-backend-boilerplate/internal/model"
-	"github.com/example/go-backend-boilerplate/internal/repository"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/model"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/repository"
 )
 
 type NotificationService struct {

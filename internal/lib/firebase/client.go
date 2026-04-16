@@ -10,7 +10,7 @@ import (
 	"firebase.google.com/go/v4/auth"
 	"google.golang.org/api/option"
 
-	"github.com/example/go-backend-boilerplate/internal/config"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/config"
 )
 
 type Client struct {

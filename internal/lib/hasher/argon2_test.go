@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/example/go-backend-boilerplate/internal/lib/hasher"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/lib/hasher"
 )
 
 func TestHashArgon2_Prefix(t *testing.T) {

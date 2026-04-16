@@ -10,8 +10,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 
-	"github.com/example/go-backend-boilerplate/internal/database"
-	"github.com/example/go-backend-boilerplate/internal/model"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/database"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/model"
 )
 
 var (

@@ -9,7 +9,7 @@ import (
 
 	"github.com/rs/zerolog"
 
-	"github.com/example/go-backend-boilerplate/internal/database"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/database"
 )
 
 // BaseRepository provides common database operations

@@ -8,8 +8,8 @@ import (
 
 	"github.com/labstack/echo/v4"
 
-	"github.com/example/go-backend-boilerplate/internal/middleware"
-	"github.com/example/go-backend-boilerplate/internal/server"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/middleware"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/server"
 )
 
 type HealthHandler struct {

@@ -8,7 +8,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog"
 
-	"github.com/example/go-backend-boilerplate/internal/errs"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/errs"
 )
 
 // RecoveryMiddleware captura panics e retorna erro 500

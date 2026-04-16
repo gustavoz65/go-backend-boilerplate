@@ -7,9 +7,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 
-	"github.com/example/go-backend-boilerplate/internal/errs"
-	"github.com/example/go-backend-boilerplate/internal/middleware"
-	"github.com/example/go-backend-boilerplate/internal/service"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/errs"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/middleware"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/service"
 )
 
 type NotificationHandler struct {

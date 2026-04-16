@@ -17,11 +17,11 @@ import (
 	"github.com/rs/zerolog"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/example/go-backend-boilerplate/internal/config"
-	"github.com/example/go-backend-boilerplate/internal/lib/firebase"
-	"github.com/example/go-backend-boilerplate/internal/lib/hasher"
-	"github.com/example/go-backend-boilerplate/internal/model"
-	"github.com/example/go-backend-boilerplate/internal/repository"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/config"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/lib/firebase"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/lib/hasher"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/model"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/repository"
 )
 
 var (

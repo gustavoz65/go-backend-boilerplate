@@ -8,12 +8,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/newrelic/go-agent/v3/integrations/logcontext-v2/zerologWriter"
 	"github.com/newrelic/go-agent/v3/newrelic"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/pkgerrors"
 
-	"github.com/example/go-backend-boilerplate/internal/config"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/config"
 )
 
 type LoggerService struct {
@@ -80,6 +79,8 @@ func NewLoggerWithConfig(cfg *config.ObservabilityConfig) zerolog.Logger {
 }
 
 func NewLoggerWithService(cfg *config.ObservabilityConfig, loggerService *LoggerService) zerolog.Logger {
+	_ = loggerService
+
 	var logLevel zerolog.Level
 	level := cfg.GetLogLevel()
 
@@ -106,12 +107,7 @@ func NewLoggerWithService(cfg *config.ObservabilityConfig, loggerService *Logger
 	if cfg.IsProduction() && cfg.Logging.Format == "json" {
 		baseWriter = os.Stdout
 
-		if loggerService != nil && loggerService.nrApp != nil {
-			nrWriter := zerologWriter.New(baseWriter, loggerService.nrApp)
-			writer = nrWriter
-		} else {
-			writer = baseWriter
-		}
+		writer = baseWriter
 	} else {
 		consoleWriter := zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: "2006-01-02 15:04:05"}
 		writer = consoleWriter

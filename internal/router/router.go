@@ -7,14 +7,14 @@ import (
 	echomiddleware "github.com/labstack/echo/v4/middleware"
 	"github.com/rs/zerolog"
 
-	"github.com/example/go-backend-boilerplate/internal/config"
-	"github.com/example/go-backend-boilerplate/internal/database"
-	"github.com/example/go-backend-boilerplate/internal/handler"
-	"github.com/example/go-backend-boilerplate/internal/lib/utils/validator"
-	"github.com/example/go-backend-boilerplate/internal/middleware"
-	"github.com/example/go-backend-boilerplate/internal/repository"
-	"github.com/example/go-backend-boilerplate/internal/server"
-	"github.com/example/go-backend-boilerplate/internal/service"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/config"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/database"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/handler"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/lib/utils/validator"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/middleware"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/repository"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/server"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/service"
 )
 
 // New creates and configures the Echo router for the core boilerplate modules.
