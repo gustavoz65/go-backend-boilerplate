@@ -1,0 +1,131 @@
+version: "3"
+
+dotenv: [".env"]
+
+vars:
+  DB_USER: '{{.APP_DATABASE_USER | default "app"}}'
+  DB_PASS: '{{.APP_DATABASE_PASSWORD | default "app_password"}}'
+  DB_HOST: '{{.APP_DATABASE_HOST | default "localhost"}}'
+  DB_PORT: '{{.APP_DATABASE_PORT | default "3306"}}'
+  DB_NAME: '{{.APP_DATABASE_DB_NAME | default "boilerplate"}}'
+  DB_DSN: "mysql://{{.DB_USER}}:{{.DB_PASS}}@{{.DB_HOST}}:{{.DB_PORT}}/{{.DB_NAME}}?parseTime=true"
+
+tasks:
+  help:
+    desc: print this help message
+    cmds:
+      - task --list-all
+    silent: true
+
+  confirm:
+    desc: confirmation prompt
+    cmds:
+      - |
+        echo -n 'Are you sure? [y/N] ' && read ans && [ ${ans:-N} = y ]
+    silent: true
+    internal: true
+
+  run:
+    desc: run the application (auto-migrates only when APP_PRIMARY_ENV != local)
+    cmds:
+      - go run ./cmd
+
+  migrations:new:
+    desc: create a new migration with Atlas (diff from schema.hcl)
+    vars:
+      NAME: '{{.name | default ""}}'
+    cmds:
+      - |
+        if [ -z "{{.NAME}}" ]; then
+          echo "Error: name parameter is required"
+          echo "Usage: task migrations:new name=migration_name"
+          exit 1
+        fi
+      - echo 'Generating migration for {{.NAME}} from schema...'
+      - atlas migrate diff {{.NAME}} --env local
+
+  migrations:new:manual:
+    desc: create empty migration files (manual SQL writing)
+    vars:
+      NAME: '{{.name | default ""}}'
+    cmds:
+      - |
+        if [ -z "{{.NAME}}" ]; then
+          echo "Error: name parameter is required"
+          echo "Usage: task migrations:new:manual name=migration_name"
+          exit 1
+        fi
+      - echo 'Creating empty migration files for {{.NAME}}...'
+      - migrate create -ext sql -dir ./internal/database/migrations -seq {{.NAME}}
+
+  migrations:up:
+    desc: apply all pending migrations
+    cmds:
+      - echo 'Running migrations...'
+      - atlas migrate apply --env local
+
+  migrations:down:
+    desc: rollback last migration
+    deps: [confirm]
+    cmds:
+      - echo 'Rolling back last migration...'
+      - migrate -path ./internal/database/migrations -database "{{.DB_DSN}}" down 1
+
+  migrations:version:
+    desc: show current migration version
+    cmds:
+      - migrate -path ./internal/database/migrations -database "{{.DB_DSN}}" version
+
+  migrations:force:
+    desc: force migration version (use with caution)
+    vars:
+      VERSION: '{{.version | default ""}}'
+    cmds:
+      - |
+        if [ -z "{{.VERSION}}" ]; then
+          echo "Error: version parameter is required"
+          echo "Usage: task migrations:force version=1"
+          exit 1
+        fi
+      - echo 'Forcing migration version to {{.VERSION}}...'
+      - migrate -path ./internal/database/migrations -database "{{.DB_DSN}}" force {{.VERSION}}
+
+  migrations:status:
+    desc: show migration status (pending, applied)
+    cmds:
+      - echo 'Checking migration status...'
+      - atlas migrate status --env local
+
+  migrations:validate:
+    desc: validate migration files
+    cmds:
+      - echo 'Validating migration files...'
+      - atlas migrate validate --env local
+
+  migrations:hash:
+    desc: update migration file hashes
+    cmds:
+      - echo 'Updating migration hashes...'
+      - atlas migrate hash --env local
+
+  schema:inspect:
+    desc: inspect current database schema
+    cmds:
+      - echo 'Inspecting database schema...'
+      - atlas schema inspect --env local
+
+  schema:diff:
+    desc: show diff between schema and database
+    cmds:
+      - echo 'Comparing schema with database...'
+      - atlas schema diff --env local
+
+  tidy:
+    desc: format all .go files, and tidy and verify module dependencies
+    cmds:
+      - echo 'Formatting .go files...'
+      - go fmt ./...
+      - echo 'Tidying module dependencies...'
+      - go mod tidy
+      - echo 'Verifying dependencies...'
+      - go mod verify

@@ -1,0 +1,59 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+
+  settings:
+    errcheck:
+      check-type-assertions: false
+      check-blank: false
+      exclude-functions:
+        - (*database/sql.Rows).Close
+        - (*database/sql.DB).Close
+        - (io.Closer).Close
+        - (*github.com/redis/go-redis/v9.Client).Close
+        - (*github.com/hibiken/asynq.Client).Close
+
+    govet:
+      disable:
+        - shadow
+
+    staticcheck:
+      checks: ["all", "-SA1019", "-ST1000", "-ST1020"]
+
+  exclusions:
+    rules:
+      - path: "_test\\.go"
+        linters:
+          - errcheck
+          - govet
+
+      - path: "internal/repository/audit_log_repository.go"
+        linters:
+          - errcheck
+        text: "Error return value of.*Scan.*is not checked"
+
+      - path: "internal/database/"
+        linters:
+          - unused
+        text: "type.*is unused"
+
+formatters:
+  enable:
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/gustavoz65/Fyapp
+
+issues:
+  max-same-issues: 50
