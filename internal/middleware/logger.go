@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
 )
 
@@ -21,47 +21,43 @@ var sensitiveQueryParams = []string{
 	"id_token",
 }
 
-func LoggerMiddleware(logger *zerolog.Logger) echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			start := time.Now()
-			req := c.Request()
+func LoggerMiddleware(logger *zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		start := time.Now()
+		req := c.Request
 
-			// Sanitiza query params para não logar dados sensíveis
-			sanitizedQuery := sanitizeQueryParams(req.URL.RawQuery)
+		// Sanitiza query params para não logar dados sensíveis
+		sanitizedQuery := sanitizeQueryParams(req.URL.RawQuery)
 
-			// Injeta logger no contexto
-			requestLogger := logger.With().
-				Str("request_id", c.Response().Header().Get(echo.HeaderXRequestID)).
-				Str("method", req.Method).
-				Str("path", req.URL.Path).
-				Str("query", sanitizedQuery).
-				Str("remote_ip", c.RealIP()).
-				Str("user_agent", sanitizeUserAgent(req.UserAgent())).
-				Logger()
+		// Injeta logger no contexto
+		requestLogger := logger.With().
+			Str("request_id", c.GetString(requestIDKey)).
+			Str("method", req.Method).
+			Str("path", req.URL.Path).
+			Str("query", sanitizedQuery).
+			Str("remote_ip", c.ClientIP()).
+			Str("user_agent", sanitizeUserAgent(req.UserAgent())).
+			Logger()
 
-			c.Set(loggerKey, &requestLogger)
+		c.Set(loggerKey, &requestLogger)
 
-			err := next(c)
+		c.Next()
 
-			duration := time.Since(start)
-			status := c.Response().Status
+		duration := time.Since(start)
+		status := c.Writer.Status()
 
-			logEvent := requestLogger.Info()
-			if status >= 500 {
-				logEvent = requestLogger.Error()
-			} else if status >= 400 {
-				logEvent = requestLogger.Warn()
-			}
-
-			logEvent.
-				Int("status", status).
-				Dur("duration", duration).
-				Int64("bytes_out", c.Response().Size).
-				Msg("request completed")
-
-			return err
+		logEvent := requestLogger.Info()
+		if status >= 500 {
+			logEvent = requestLogger.Error()
+		} else if status >= 400 {
+			logEvent = requestLogger.Warn()
 		}
+
+		logEvent.
+			Int("status", status).
+			Dur("duration", duration).
+			Int("bytes_out", c.Writer.Size()).
+			Msg("request completed")
 	}
 }
 
@@ -109,9 +105,11 @@ func sanitizeUserAgent(ua string) string {
 }
 
 // GetLogger retorna o logger do contexto
-func GetLogger(c echo.Context) *zerolog.Logger {
-	if logger, ok := c.Get(loggerKey).(*zerolog.Logger); ok {
-		return logger
+func GetLogger(c *gin.Context) *zerolog.Logger {
+	if logger, ok := c.Get(loggerKey); ok {
+		if l, ok := logger.(*zerolog.Logger); ok {
+			return l
+		}
 	}
 	l := zerolog.Nop()
 	return &l
