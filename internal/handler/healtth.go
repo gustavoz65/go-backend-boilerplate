@@ -2,11 +2,10 @@ package handler
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/gin-gonic/gin"
 
 	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/middleware"
 	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/server"
@@ -22,7 +21,7 @@ func NewHealthHandler(s *server.Server) *HealthHandler {
 	}
 }
 
-func (h *HealthHandler) CheckHandler(c echo.Context) error {
+func (h *HealthHandler) CheckHandler(c *gin.Context) {
 	start := time.Now()
 	logger := middleware.GetLogger(c).With().
 		Str("operation", "health_check").
@@ -111,25 +110,12 @@ func (h *HealthHandler) CheckHandler(c echo.Context) error {
 					"total_duration": time.Since(start).Milliseconds(),
 				})
 		}
-		return c.JSON(http.StatusServiceUnavailable, response)
+		c.JSON(http.StatusServiceUnavailable, response)
+		return
 	}
 	logger.Info().
 		Dur("total_duration", time.Since(start)).
 		Msg("O health check foi realizado com Sucesso")
 
-	err := c.JSON(http.StatusOK, response)
-	if err != nil {
-		logger.Error().Err(err).Msg("Falha ao enviar a resposta do health check")
-		if h.server.LoggerService != nil && h.server.LoggerService.GetApplication() != nil {
-			h.server.LoggerService.GetApplication().RecordCustomEvent(
-				"HealthCheckError", map[string]interface{}{
-					"check_type":    "response",
-					"operation":     "health_check",
-					"error_type":    "response_error",
-					"error_message": err.Error(),
-				})
-		}
-		return fmt.Errorf("falha ao escrever a resposta JSON: %w", err)
-	}
-	return nil
+	c.JSON(http.StatusOK, response)
 }
