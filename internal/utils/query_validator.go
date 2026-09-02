@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
 	"github.com/shopspring/decimal"
 
 	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/errs"
@@ -19,16 +19,16 @@ const (
 )
 
 type QueryValidator struct {
-	ctx echo.Context
+	ctx *gin.Context
 }
 
-func NewQueryValidator(c echo.Context) *QueryValidator {
+func NewQueryValidator(c *gin.Context) *QueryValidator {
 	return &QueryValidator{ctx: c}
 }
 
 // GetUUID valida e retorna um UUID de query parameter
 func (qv *QueryValidator) GetUUID(key string, required bool) (*uuid.UUID, error) {
-	val := qv.ctx.QueryParam(key)
+	val := qv.ctx.Query(key)
 	if val == "" {
 		if required {
 			return nil, errs.NewBadRequestError(fmt.Sprintf("%s é obrigatório", key), false, nil, nil, nil)
@@ -45,7 +45,7 @@ func (qv *QueryValidator) GetUUID(key string, required bool) (*uuid.UUID, error)
 
 // GetInt valida e retorna um int de query parameter com range
 func (qv *QueryValidator) GetInt(key string, required bool, min, max int) (*int, error) {
-	val := qv.ctx.QueryParam(key)
+	val := qv.ctx.Query(key)
 	if val == "" {
 		if required {
 			return nil, errs.NewBadRequestError(fmt.Sprintf("%s é obrigatório", key), false, nil, nil, nil)
@@ -68,7 +68,7 @@ func (qv *QueryValidator) GetInt(key string, required bool, min, max int) (*int,
 
 // GetDecimal valida e retorna um decimal de query parameter
 func (qv *QueryValidator) GetDecimal(key string, required bool) (*decimal.Decimal, error) {
-	val := qv.ctx.QueryParam(key)
+	val := qv.ctx.Query(key)
 	if val == "" {
 		if required {
 			return nil, errs.NewBadRequestError(fmt.Sprintf("%s é obrigatório", key), false, nil, nil, nil)
@@ -86,7 +86,7 @@ func (qv *QueryValidator) GetDecimal(key string, required bool) (*decimal.Decima
 
 // GetDate valida e retorna uma data de query parameter (formato: YYYY-MM-DD)
 func (qv *QueryValidator) GetDate(key string, required bool) (*time.Time, error) {
-	val := qv.ctx.QueryParam(key)
+	val := qv.ctx.Query(key)
 	if val == "" {
 		if required {
 			return nil, errs.NewBadRequestError(fmt.Sprintf("%s é obrigatório", key), false, nil, nil, nil)
@@ -105,7 +105,7 @@ func (qv *QueryValidator) GetDate(key string, required bool) (*time.Time, error)
 
 // GetBool valida e retorna um bool de query parameter
 func (qv *QueryValidator) GetBool(key string) *bool {
-	val := qv.ctx.QueryParam(key)
+	val := qv.ctx.Query(key)
 	if val == "" {
 		return nil
 	}
@@ -140,7 +140,7 @@ func (qv *QueryValidator) GetPagination() (page, pageSize int, err error) {
 
 // GetEnum valida e retorna um valor enum de query parameter
 func (qv *QueryValidator) GetEnum(key string, required bool, allowedValues []string) (*string, error) {
-	val := qv.ctx.QueryParam(key)
+	val := qv.ctx.Query(key)
 	if val == "" {
 		if required {
 			return nil, errs.NewBadRequestError(fmt.Sprintf("%s é obrigatório", key), false, nil, nil, nil)
@@ -160,7 +160,7 @@ func (qv *QueryValidator) GetEnum(key string, required bool, allowedValues []str
 
 // GetString retorna um string de query parameter com validação opcional de tamanho
 func (qv *QueryValidator) GetString(key string, required bool, maxLength int) (*string, error) {
-	val := qv.ctx.QueryParam(key)
+	val := qv.ctx.Query(key)
 	if val == "" {
 		if required {
 			return nil, errs.NewBadRequestError(fmt.Sprintf("%s é obrigatório", key), false, nil, nil, nil)
