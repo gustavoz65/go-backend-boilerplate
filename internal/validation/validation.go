@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
-	"github.com/labstack/echo/v4"
 
 	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/errs"
 )
@@ -20,8 +20,8 @@ type Validatable interface {
 	any
 }
 
-func BindAndValidate(c echo.Context, req interface{}) error {
-	if err := c.Bind(req); err != nil {
+func BindAndValidate(c *gin.Context, req interface{}) error {
+	if err := c.ShouldBind(req); err != nil {
 		return errs.NewBadRequestError("Formato de requisicao invalido", false, nil, nil, nil)
 	}
 
