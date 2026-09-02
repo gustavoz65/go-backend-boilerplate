@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/gin-gonic/gin"
 	"github.com/newrelic/go-agent/v3/newrelic"
 
 	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/middleware"
@@ -21,14 +21,14 @@ func NewHandler(s *server.Server) Handler {
 }
 
 // HandlerFunc representa um tipo de funcao que processa uma requisicao e retorna uma resposta ou um erro.
-type HandlerFunc[Req any, Res any] func(c echo.Context, req Req) (Res, error)
+type HandlerFunc[Req any, Res any] func(c *gin.Context, req Req) (Res, error)
 
 // HandlerFuncNoContent representa um tipo de funcao que processa uma requisicao sem retornar conteudo na resposta.
-type HandlerFuncNoContent[Req any] func(c echo.Context, req Req) error
+type HandlerFuncNoContent[Req any] func(c *gin.Context, req Req) error
 
 // ResponseHandler e responsavel por manipular a resposta de uma operacao.
 type ResponseHandler interface {
-	Handle(c echo.Context, result interface{}) error
+	Handle(c *gin.Context, result interface{})
 	GetOperation() string
 	AddAttributes(txn *newrelic.Transaction, result interface{})
 }
@@ -38,8 +38,8 @@ type JSONResponseHandler struct {
 	status int
 }
 
-func (h *JSONResponseHandler) Handle(c echo.Context, result interface{}) error {
-	return c.JSON(h.status, result)
+func (h *JSONResponseHandler) Handle(c *gin.Context, result interface{}) {
+	c.JSON(h.status, result)
 }
 
 func (h *JSONResponseHandler) GetOperation() string {
@@ -53,8 +53,8 @@ type NoContentResponseHandler struct {
 	status int
 }
 
-func (h *NoContentResponseHandler) Handle(c echo.Context, result interface{}) error {
-	return c.NoContent(h.status)
+func (h *NoContentResponseHandler) Handle(c *gin.Context, result interface{}) {
+	c.Status(h.status)
 }
 
 func (h *NoContentResponseHandler) GetOperation() string {
@@ -70,10 +70,10 @@ type FileResponseHandler struct {
 	contentType string
 }
 
-func (h *FileResponseHandler) Handle(c echo.Context, result interface{}) error {
+func (h *FileResponseHandler) Handle(c *gin.Context, result interface{}) {
 	data := result.([]byte)
-	c.Response().Header().Set("Content-Disposition", "attachment; filename="+h.filename)
-	return c.Blob(h.status, h.contentType, data)
+	c.Header("Content-Disposition", "attachment; filename="+h.filename)
+	c.Data(h.status, h.contentType, data)
 }
 
 func (h *FileResponseHandler) GetOperation() string {
@@ -92,18 +92,17 @@ func (h *FileResponseHandler) AddAttributes(txn *newrelic.Transaction, result in
 
 // handleRequest e uma funcao generica que lida com a logica comum de manipulacao de requisicoes.
 func handleRequest[Req any](
-	c echo.Context,
+	c *gin.Context,
 	req Req,
-	handler func(c echo.Context, req Req) (interface{}, error),
+	handler func(c *gin.Context, req Req) (interface{}, error),
 	responseHandler ResponseHandler,
-) error {
+) {
 	start := time.Now()
-	method := c.Request().Method
-	path := c.Path()
-	route := path
+	method := c.Request.Method
+	route := c.FullPath()
 
 	// Get New Relic transaction
-	txn := newrelic.FromContext(c.Request().Context())
+	txn := newrelic.FromContext(c.Request.Context())
 	if txn != nil {
 		txn.AddAttribute("handler.name", route)
 		responseHandler.AddAttributes(txn, nil)
@@ -113,7 +112,7 @@ func handleRequest[Req any](
 	logger := middleware.GetLogger(c).With().
 		Str("operation", responseHandler.GetOperation()).
 		Str("method", method).
-		Str("path", path).
+		Str("path", route).
 		Str("route", route).
 		Logger()
 
@@ -134,7 +133,8 @@ func handleRequest[Req any](
 			txn.AddAttribute("validation.status", "failed")
 			txn.AddAttribute("validation.duration_ms", validationDuration.Milliseconds())
 		}
-		return err
+		_ = c.Error(err)
+		return
 	}
 
 	validationDuration := time.Since(validationStart)
@@ -167,7 +167,8 @@ func handleRequest[Req any](
 			txn.AddAttribute("handler.duration_ms", handlerDuration.Milliseconds())
 			txn.AddAttribute("total.duration_ms", totalDuration.Milliseconds())
 		}
-		return err
+		_ = c.Error(err)
+		return
 	}
 
 	totalDuration := time.Since(start)
@@ -185,7 +186,7 @@ func handleRequest[Req any](
 		Dur("total_duration", totalDuration).
 		Msg("request completed successfully")
 
-	return responseHandler.Handle(c, result)
+	responseHandler.Handle(c, result)
 }
 
 // Handle serve para lidar com requisicoes que retornam uma resposta JSON.
@@ -194,9 +195,9 @@ func Handle[Req any, Res any](
 	handler HandlerFunc[Req, Res],
 	status int,
 	req Req,
-) echo.HandlerFunc {
-	return func(c echo.Context) error {
-		return handleRequest(c, req, func(c echo.Context, req Req) (interface{}, error) {
+) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		handleRequest(c, req, func(c *gin.Context, req Req) (interface{}, error) {
 			return handler(c, req)
 		}, &JSONResponseHandler{status: status})
 	}
@@ -210,9 +211,9 @@ func HandleFile[Req any](
 	req Req,
 	filename string,
 	contentType string,
-) echo.HandlerFunc {
-	return func(c echo.Context) error {
-		return handleRequest(c, req, func(c echo.Context, req Req) (interface{}, error) {
+) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		handleRequest(c, req, func(c *gin.Context, req Req) (interface{}, error) {
 			return handler(c, req)
 		}, &FileResponseHandler{
 			status:      status,
@@ -228,9 +229,9 @@ func HandleNoContent[Req any](
 	handler HandlerFuncNoContent[Req],
 	status int,
 	req Req,
-) echo.HandlerFunc {
-	return func(c echo.Context) error {
-		return handleRequest(c, req, func(c echo.Context, req Req) (interface{}, error) {
+) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		handleRequest(c, req, func(c *gin.Context, req Req) (interface{}, error) {
 			err := handler(c, req)
 			return nil, err
 		}, &NoContentResponseHandler{status: status})
@@ -239,26 +240,26 @@ func HandleNoContent[Req any](
 
 // SimpleHandler e um helper para handlers simples que nao usam BindAndValidate do base.
 // Util para handlers que fazem seu proprio parsing (query params, path params, etc.)
-func SimpleHandler(fn func(c echo.Context) error) echo.HandlerFunc {
+func SimpleHandler(fn func(c *gin.Context)) gin.HandlerFunc {
 	return fn
 }
 
 // JSONResponse helper para retornar JSON com status code
-func JSONResponse(c echo.Context, status int, data interface{}) error {
-	return c.JSON(status, data)
+func JSONResponse(c *gin.Context, status int, data interface{}) {
+	c.JSON(status, data)
 }
 
 // SuccessResponse retorna uma resposta de sucesso padrao
-func SuccessResponse(c echo.Context, data interface{}) error {
-	return c.JSON(http.StatusOK, data)
+func SuccessResponse(c *gin.Context, data interface{}) {
+	c.JSON(http.StatusOK, data)
 }
 
 // CreatedResponse retorna uma resposta de criacao
-func CreatedResponse(c echo.Context, data interface{}) error {
-	return c.JSON(http.StatusCreated, data)
+func CreatedResponse(c *gin.Context, data interface{}) {
+	c.JSON(http.StatusCreated, data)
 }
 
 // NoContentResponse retorna uma resposta sem conteudo
-func NoContentResponse(c echo.Context) error {
-	return c.NoContent(http.StatusNoContent)
+func NoContentResponse(c *gin.Context) {
+	c.Status(http.StatusNoContent)
 }
