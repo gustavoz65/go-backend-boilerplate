@@ -1,5 +1,5 @@
-// Pacote service implementa a camada de lógica de negócio da aplicação.
-package service
+// Pacote auth implementa o módulo de autenticação (registro, login, tokens e login social).
+package auth
 
 import (
 	"context"
@@ -41,7 +41,7 @@ type JWTClaims struct {
 	jwt.RegisteredClaims
 }
 
-type AuthService struct {
+type Service struct {
 	userRepo       *repository.UserRepository
 	providerRepo   *repository.OAuthProviderRepository
 	firebaseClient *firebase.Client
@@ -49,14 +49,14 @@ type AuthService struct {
 	logger         *zerolog.Logger
 }
 
-func NewAuthService(
+func NewService(
 	userRepo *repository.UserRepository,
 	providerRepo *repository.OAuthProviderRepository,
 	firebaseClient *firebase.Client,
 	cfg *config.Config,
 	logger *zerolog.Logger,
-) *AuthService {
-	return &AuthService{
+) *Service {
+	return &Service{
 		userRepo:       userRepo,
 		providerRepo:   providerRepo,
 		firebaseClient: firebaseClient,
@@ -66,7 +66,7 @@ func NewAuthService(
 }
 
 // Register creates a new user account and returns authentication tokens
-func (s *AuthService) Register(ctx context.Context, req *model.RegisterRequest) (*model.LoginResponse, error) {
+func (s *Service) Register(ctx context.Context, req *model.RegisterRequest) (*model.LoginResponse, error) {
 	// Hash password
 	passwordHash, err := s.hashPassword(req.Password)
 	if err != nil {
@@ -156,7 +156,7 @@ func (s *AuthService) Register(ctx context.Context, req *model.RegisterRequest) 
 }
 
 // Login authenticates a user and returns tokens
-func (s *AuthService) Login(ctx context.Context, req *model.LoginRequest, ipAddress, userAgent string) (*model.LoginResponse, error) {
+func (s *Service) Login(ctx context.Context, req *model.LoginRequest, ipAddress, userAgent string) (*model.LoginResponse, error) {
 	user, err := s.userRepo.GetByEmail(ctx, req.Email)
 	if err != nil {
 		if errors.Is(err, repository.ErrUserNotFound) {
@@ -226,7 +226,7 @@ func (s *AuthService) Login(ctx context.Context, req *model.LoginRequest, ipAddr
 }
 
 // RefreshToken refreshes the access token using a refresh token
-func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*model.RefreshTokenResponse, error) {
+func (s *Service) RefreshToken(ctx context.Context, refreshToken string) (*model.RefreshTokenResponse, error) {
 	tokenHash := s.hashRefreshToken(refreshToken)
 
 	session, err := s.userRepo.GetSessionByToken(ctx, tokenHash)
@@ -283,7 +283,7 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*m
 }
 
 // Logout revokes the user's refresh token
-func (s *AuthService) Logout(ctx context.Context, refreshToken string) error {
+func (s *Service) Logout(ctx context.Context, refreshToken string) error {
 	tokenHash := s.hashRefreshToken(refreshToken)
 
 	session, err := s.userRepo.GetSessionByToken(ctx, tokenHash)
@@ -296,12 +296,12 @@ func (s *AuthService) Logout(ctx context.Context, refreshToken string) error {
 }
 
 // LogoutAll revokes all sessions for a user
-func (s *AuthService) LogoutAll(ctx context.Context, userID uuid.UUID) error {
+func (s *Service) LogoutAll(ctx context.Context, userID uuid.UUID) error {
 	return s.userRepo.RevokeAllUserSessions(ctx, userID)
 }
 
 // SetPassword defines a password for users who logged in via social provider and have no password yet
-func (s *AuthService) SetPassword(ctx context.Context, userID uuid.UUID, req *model.SetPasswordRequest) error {
+func (s *Service) SetPassword(ctx context.Context, userID uuid.UUID, req *model.SetPasswordRequest) error {
 	hasPassword, err := s.providerRepo.CheckUserHasPassword(ctx, userID)
 	if err != nil {
 		return fmt.Errorf("failed to check user password: %w", err)
@@ -328,7 +328,7 @@ func (s *AuthService) SetPassword(ctx context.Context, userID uuid.UUID, req *mo
 }
 
 // ChangePassword changes the user's password
-func (s *AuthService) ChangePassword(ctx context.Context, userID uuid.UUID, req *model.ChangePasswordRequest) error {
+func (s *Service) ChangePassword(ctx context.Context, userID uuid.UUID, req *model.ChangePasswordRequest) error {
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return fmt.Errorf("failed to get user: %w", err)
@@ -358,7 +358,7 @@ func (s *AuthService) ChangePassword(ctx context.Context, userID uuid.UUID, req 
 }
 
 // ValidateAccessToken validates an access token and returns the claims
-func (s *AuthService) ValidateAccessToken(tokenString string) (*JWTClaims, error) {
+func (s *Service) ValidateAccessToken(tokenString string) (*JWTClaims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -383,13 +383,13 @@ func (s *AuthService) ValidateAccessToken(tokenString string) (*JWTClaims, error
 
 // Helper methods
 
-func (s *AuthService) hashPassword(password string) (string, error) {
+func (s *Service) hashPassword(password string) (string, error) {
 	return hasher.HashArgon2(password)
 }
 
 // checkPassword verifica a senha e indica se precisa migrar de bcrypt para argon2id.
 // needsMigration é true somente quando o hash era bcrypt e a senha está correta.
-func (s *AuthService) checkPassword(password, hash string) (valid bool, needsMigration bool) {
+func (s *Service) checkPassword(password, hash string) (valid bool, needsMigration bool) {
 	if hasher.IsArgon2Hash(hash) {
 		return hasher.VerifyArgon2(password, hash), false
 	}
@@ -401,7 +401,7 @@ func (s *AuthService) checkPassword(password, hash string) (valid bool, needsMig
 	return true, true
 }
 
-func (s *AuthService) generateAccessToken(user *model.User) (string, int64, error) {
+func (s *Service) generateAccessToken(user *model.User) (string, int64, error) {
 	expiresAt := time.Now().Add(time.Duration(s.config.Auth.AccessTokenDuration) * time.Minute)
 
 	claims := &JWTClaims{
@@ -425,7 +425,7 @@ func (s *AuthService) generateAccessToken(user *model.User) (string, int64, erro
 	return tokenString, expiresAt.Unix(), nil
 }
 
-func (s *AuthService) generateRefreshToken() (string, string, error) {
+func (s *Service) generateRefreshToken() (string, string, error) {
 	bytes := make([]byte, 32)
 	if _, err := rand.Read(bytes); err != nil {
 		return "", "", err
@@ -437,7 +437,7 @@ func (s *AuthService) generateRefreshToken() (string, string, error) {
 	return token, hash, nil
 }
 
-func (s *AuthService) hashRefreshToken(token string) string {
+func (s *Service) hashRefreshToken(token string) string {
 	hash := sha256.Sum256([]byte(token))
 	return hex.EncodeToString(hash[:])
 }
@@ -451,7 +451,7 @@ var (
 )
 
 // SocialLogin autentica usuário via Firebase (cria se não existir)
-func (s *AuthService) SocialLogin(ctx context.Context, req *model.SocialLoginRequest, ipAddress, userAgent string) (*model.LoginResponse, error) {
+func (s *Service) SocialLogin(ctx context.Context, req *model.SocialLoginRequest, ipAddress, userAgent string) (*model.LoginResponse, error) {
 	if s.firebaseClient == nil {
 		return nil, ErrFirebaseNotConfigured
 	}
@@ -620,7 +620,7 @@ func (s *AuthService) SocialLogin(ctx context.Context, req *model.SocialLoginReq
 }
 
 // LinkProvider vincula um provider OAuth a uma conta existente
-func (s *AuthService) LinkProvider(ctx context.Context, userID uuid.UUID, req *model.LinkProviderRequest) error {
+func (s *Service) LinkProvider(ctx context.Context, userID uuid.UUID, req *model.LinkProviderRequest) error {
 	if s.firebaseClient == nil {
 		return ErrFirebaseNotConfigured
 	}
@@ -680,7 +680,7 @@ func (s *AuthService) LinkProvider(ctx context.Context, userID uuid.UUID, req *m
 }
 
 // UnlinkProvider remove vinculo de provider
-func (s *AuthService) UnlinkProvider(ctx context.Context, userID uuid.UUID, provider string) error {
+func (s *Service) UnlinkProvider(ctx context.Context, userID uuid.UUID, provider string) error {
 	// Verificar se provider existe
 	_, err := s.providerRepo.GetByUserIDAndProvider(ctx, userID, provider)
 	if err != nil {
@@ -721,7 +721,7 @@ func (s *AuthService) UnlinkProvider(ctx context.Context, userID uuid.UUID, prov
 }
 
 // GetLinkedProviders lista providers vinculados
-func (s *AuthService) GetLinkedProviders(ctx context.Context, userID uuid.UUID) (*model.ListProvidersResponse, error) {
+func (s *Service) GetLinkedProviders(ctx context.Context, userID uuid.UUID) (*model.ListProvidersResponse, error) {
 	// Buscar todos os providers do usuário
 	providers, err := s.providerRepo.ListByUserID(ctx, userID)
 	if err != nil {
