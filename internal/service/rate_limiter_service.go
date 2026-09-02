@@ -3,7 +3,7 @@ package service
 import (
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/gin-gonic/gin"
 
 	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/repository"
 )
@@ -27,7 +27,7 @@ func (s *RateLimiterService) GetDefaultConfig() repository.RateLimiter {
 	return s.defaultConfig
 }
 
-func (s *RateLimiterService) CreateConfig(max int, duration time.Duration, endpoint string, keyFunc func(echo.Context) string) repository.RateLimiter {
+func (s *RateLimiterService) CreateConfig(max int, duration time.Duration, endpoint string, keyFunc func(*gin.Context) string) repository.RateLimiter {
 	return repository.RateLimiter{
 		Max:         max,
 		Duration:    duration,
