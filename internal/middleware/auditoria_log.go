@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog"
 
 	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/model"
@@ -27,47 +27,45 @@ func NewAuditMiddleware(repo repository.AuditLogRepository, logger *zerolog.Logg
 
 // Handler retorna o middleware que captura e registra todas as ações do usuário
 // IMPORTANTE: Este middleware deve ser registrado DEPOIS do AuthMiddleware para ter acesso ao user_id
-func (m *AuditMiddleware) Handler() echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			// Ignora rotas que não devem ser auditadas
-			if m.shouldSkipAudit(c.Request().URL.Path) {
-				return next(c)
-			}
-
-			// Captura informações do request ANTES de processar
-			startTime := time.Now()
-			r := c.Request()
-
-			// Extrai informações do contexto (injetadas pelo AuthMiddleware)
-			var userID *uuid.UUID
-			if uid, ok := c.Get("user_id").(uuid.UUID); ok {
-				userID = &uid
-			}
-
-			// Extrai informações do request
-			ip := utils.GetRealIP(r)
-			userAgent := utils.GetUserAgent(r)
-			action := utils.GetActionFromRequest(r)
-			entityType := utils.ExtractEntityFromPath(r.URL.Path)
-
-			// Executa o próximo handler
-			err := next(c)
-
-			// Registra a auditoria de forma assíncrona para não bloquear a resposta
-			go m.logAudit(userID, action, entityType, &ip, &userAgent)
-
-			// Log de tempo de processamento (opcional)
-			duration := time.Since(startTime)
-			m.logger.Debug().
-				Str("path", r.URL.Path).
-				Str("method", r.Method).
-				Dur("duration", duration).
-				Str("ip", ip).
-				Msg("request processed")
-
-			return err
+func (m *AuditMiddleware) Handler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Ignora rotas que não devem ser auditadas
+		if m.shouldSkipAudit(c.Request.URL.Path) {
+			c.Next()
+			return
 		}
+
+		// Captura informações do request ANTES de processar
+		startTime := time.Now()
+		r := c.Request
+
+		c.Next()
+
+		// Extrai informações do contexto (injetadas pelo AuthMiddleware)
+		var userID *uuid.UUID
+		if uid, ok := c.Get("user_id"); ok {
+			if id, ok := uid.(uuid.UUID); ok {
+				userID = &id
+			}
+		}
+
+		// Extrai informações do request
+		ip := utils.GetRealIP(r)
+		userAgent := utils.GetUserAgent(r)
+		action := utils.GetActionFromRequest(r)
+		entityType := utils.ExtractEntityFromPath(r.URL.Path)
+
+		// Registra a auditoria de forma assíncrona para não bloquear a resposta
+		go m.logAudit(userID, action, entityType, &ip, &userAgent)
+
+		// Log de tempo de processamento (opcional)
+		duration := time.Since(startTime)
+		m.logger.Debug().
+			Str("path", r.URL.Path).
+			Str("method", r.Method).
+			Dur("duration", duration).
+			Str("ip", ip).
+			Msg("request processed")
 	}
 }
 
