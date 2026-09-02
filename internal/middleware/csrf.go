@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/gin-gonic/gin"
 
 	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/errs"
 )
@@ -19,54 +19,46 @@ const (
 	csrfCookieMaxAge = 86400 // 24 horas
 )
 
-func CSRFMiddleware() echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			if c.Request().Method == http.MethodGet ||
-				c.Request().Method == http.MethodHead ||
-				c.Request().Method == http.MethodOptions {
-				return next(c)
-			}
-
-			cookie, err := c.Cookie(csrfCookieName)
-			var cookieToken string
-			if err == nil {
-				cookieToken = cookie.Value
-			}
-
-			if cookieToken == "" {
-				cookieToken = generateCSRFToken()
-				setCSRFCookie(c, cookieToken)
-			}
-
-			headerToken := c.Request().Header.Get(csrfTokenHeader)
-
-			if headerToken == "" || !secureCompare(cookieToken, headerToken) {
-				return errs.NewForbiddenError("Token CSRF invalido ou ausente", false)
-			}
-
-			return next(c)
+func CSRFMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if c.Request.Method == http.MethodGet ||
+			c.Request.Method == http.MethodHead ||
+			c.Request.Method == http.MethodOptions {
+			c.Next()
+			return
 		}
+
+		cookieToken, _ := c.Cookie(csrfCookieName)
+
+		if cookieToken == "" {
+			cookieToken = generateCSRFToken()
+			setCSRFCookie(c, cookieToken)
+		}
+
+		headerToken := c.GetHeader(csrfTokenHeader)
+
+		if headerToken == "" || !secureCompare(cookieToken, headerToken) {
+			_ = c.Error(errs.NewForbiddenError("Token CSRF invalido ou ausente", false))
+			c.Abort()
+			return
+		}
+
+		c.Next()
 	}
 }
 
-func CSRFTokenGenerator() echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			cookie, err := c.Cookie(csrfCookieName)
-			var token string
-			if err != nil || cookie.Value == "" {
-				token = generateCSRFToken()
-				setCSRFCookie(c, token)
-			} else {
-				token = cookie.Value
-			}
-
-			// serve o token no header para que o cliente possa ler e usar nas requisições subsequentes
-			c.Response().Header().Set(csrfTokenHeader, token)
-
-			return next(c)
+func CSRFTokenGenerator() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		token, err := c.Cookie(csrfCookieName)
+		if err != nil || token == "" {
+			token = generateCSRFToken()
+			setCSRFCookie(c, token)
 		}
+
+		// serve o token no header para que o cliente possa ler e usar nas requisições subsequentes
+		c.Header(csrfTokenHeader, token)
+
+		c.Next()
 	}
 }
 
@@ -78,22 +70,14 @@ func generateCSRFToken() string {
 	return base64.URLEncoding.EncodeToString(b)
 }
 
-func setCSRFCookie(c echo.Context, token string) {
-	isSecure := c.Request().TLS != nil || c.Request().Header.Get("X-Forwarded-Proto") == "https"
+func setCSRFCookie(c *gin.Context, token string) {
+	isSecure := c.Request.TLS != nil || c.GetHeader("X-Forwarded-Proto") == "https"
 	sameSite := http.SameSiteStrictMode
 	if isSecure {
 		sameSite = http.SameSiteNoneMode
 	}
-	cookie := &http.Cookie{
-		Name:     csrfCookieName,
-		Value:    token,
-		Path:     "/",
-		MaxAge:   csrfCookieMaxAge,
-		HttpOnly: false,
-		Secure:   isSecure,
-		SameSite: sameSite,
-	}
-	c.SetCookie(cookie)
+	c.SetSameSite(sameSite)
+	c.SetCookie(csrfCookieName, token, csrfCookieMaxAge, "/", "", isSecure, false)
 }
 
 func secureCompare(a, b string) bool {
