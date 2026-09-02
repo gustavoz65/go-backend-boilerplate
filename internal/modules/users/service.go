@@ -1,4 +1,5 @@
-package service
+// Pacote users implementa o módulo de perfil e configurações do usuário autenticado.
+package users
 
 import (
 	"context"
@@ -11,20 +12,20 @@ import (
 	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/repository"
 )
 
-type UserService struct {
+type Service struct {
 	userRepo *repository.UserRepository
 	logger   *zerolog.Logger
 }
 
-func NewUserService(userRepo *repository.UserRepository, logger *zerolog.Logger) *UserService {
-	return &UserService{
+func NewService(userRepo *repository.UserRepository, logger *zerolog.Logger) *Service {
+	return &Service{
 		userRepo: userRepo,
 		logger:   logger,
 	}
 }
 
 // GetByID retrieves a user by ID
-func (s *UserService) GetByID(ctx context.Context, id uuid.UUID) (*model.User, error) {
+func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*model.User, error) {
 	user, err := s.userRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -33,7 +34,7 @@ func (s *UserService) GetByID(ctx context.Context, id uuid.UUID) (*model.User, e
 }
 
 // GetByEmail retrieves a user by email
-func (s *UserService) GetByEmail(ctx context.Context, email string) (*model.User, error) {
+func (s *Service) GetByEmail(ctx context.Context, email string) (*model.User, error) {
 	user, err := s.userRepo.GetByEmail(ctx, email)
 	if err != nil {
 		return nil, err
@@ -42,7 +43,7 @@ func (s *UserService) GetByEmail(ctx context.Context, email string) (*model.User
 }
 
 // Update updates a user profile
-func (s *UserService) Update(ctx context.Context, userID uuid.UUID, req *model.UpdateUserRequest) (*model.User, error) {
+func (s *Service) Update(ctx context.Context, userID uuid.UUID, req *model.UpdateUserRequest) (*model.User, error) {
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -80,7 +81,7 @@ func (s *UserService) Update(ctx context.Context, userID uuid.UUID, req *model.U
 }
 
 // CompleteOnboarding marks the user's onboarding as completed
-func (s *UserService) CompleteOnboarding(ctx context.Context, userID uuid.UUID) (*model.User, error) {
+func (s *Service) CompleteOnboarding(ctx context.Context, userID uuid.UUID) (*model.User, error) {
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user: %w", err)
@@ -100,7 +101,7 @@ func (s *UserService) CompleteOnboarding(ctx context.Context, userID uuid.UUID) 
 }
 
 // Deactivate deactivates a user account
-func (s *UserService) Deactivate(ctx context.Context, userID uuid.UUID) error {
+func (s *Service) Deactivate(ctx context.Context, userID uuid.UUID) error {
 	if err := s.userRepo.Deactivate(ctx, userID); err != nil {
 		return fmt.Errorf("failed to deactivate user: %w", err)
 	}
@@ -113,7 +114,7 @@ func (s *UserService) Deactivate(ctx context.Context, userID uuid.UUID) error {
 }
 
 // GetSettings retrieves user settings
-func (s *UserService) GetSettings(ctx context.Context, userID uuid.UUID) (*model.UserSettings, error) {
+func (s *Service) GetSettings(ctx context.Context, userID uuid.UUID) (*model.UserSettings, error) {
 	settings, err := s.userRepo.GetSettings(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user settings: %w", err)
@@ -122,7 +123,7 @@ func (s *UserService) GetSettings(ctx context.Context, userID uuid.UUID) (*model
 }
 
 // UpdateSettings updates user settings
-func (s *UserService) UpdateSettings(ctx context.Context, userID uuid.UUID, req *model.UpdateUserSettingsRequest) (*model.UserSettings, error) {
+func (s *Service) UpdateSettings(ctx context.Context, userID uuid.UUID, req *model.UpdateUserSettingsRequest) (*model.UserSettings, error) {
 	settings, err := s.userRepo.GetSettings(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user settings: %w", err)
