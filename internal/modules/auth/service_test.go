@@ -1,4 +1,4 @@
-package service
+package auth
 
 import (
 	"testing"
@@ -6,8 +6,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func newTestAuthService() *AuthService {
-	return &AuthService{}
+func newTestAuthService() *Service {
+	return &Service{}
 }
 
 func TestHashPassword_UsesArgon2(t *testing.T) {
