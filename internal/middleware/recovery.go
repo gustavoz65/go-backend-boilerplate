@@ -1,65 +1,34 @@
 package middleware
 
 import (
-	"fmt"
 	"net/http"
 	"runtime"
 
-	"github.com/labstack/echo/v4"
+	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
 
 	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/errs"
 )
 
 // RecoveryMiddleware captura panics e retorna erro 500
-func RecoveryMiddleware(logger *zerolog.Logger) echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			defer func() {
-				if r := recover(); r != nil {
-					var stackBuf [4096]byte
-					n := runtime.Stack(stackBuf[:], false)
+func RecoveryMiddleware(logger *zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		defer func() {
+			if r := recover(); r != nil {
+				var stackBuf [4096]byte
+				n := runtime.Stack(stackBuf[:], false)
 
-					logger.Error().
-						Str("method", c.Request().Method).
-						Str("path", c.Request().URL.Path).
-						Str("remote_ip", c.RealIP()).
-						Str("stack", string(stackBuf[:n])).
-						Msgf("PANIC RECOVERED: %v", r)
+				logger.Error().
+					Str("method", c.Request.Method).
+					Str("path", c.Request.URL.Path).
+					Str("remote_ip", c.ClientIP()).
+					Str("stack", string(stackBuf[:n])).
+					Msgf("PANIC RECOVERED: %v", r)
 
-					httpErr := errs.NewInternalServerError()
-					_ = c.JSON(http.StatusInternalServerError, httpErr)
-				}
-			}()
+				c.AbortWithStatusJSON(http.StatusInternalServerError, errs.NewInternalServerError())
+			}
+		}()
 
-			return next(c)
-		}
-	}
-}
-
-// RecoveryMiddlewareWithMessage retorna uma mensagem customizada
-func RecoveryMiddlewareWithMessage(logger *zerolog.Logger) echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			defer func() {
-				if r := recover(); r != nil {
-					err, ok := r.(error)
-					if !ok {
-						err = fmt.Errorf("%v", r)
-					}
-
-					logger.Error().
-						Err(err).
-						Str("method", c.Request().Method).
-						Str("path", c.Request().URL.Path).
-						Msg("panic recovered")
-
-					httpErr := errs.NewInternalServerError()
-					_ = c.JSON(http.StatusInternalServerError, httpErr)
-				}
-			}()
-
-			return next(c)
-		}
+		c.Next()
 	}
 }
