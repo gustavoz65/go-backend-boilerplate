@@ -3,98 +3,93 @@ package router
 import (
 	"net/http"
 
-	"github.com/labstack/echo/v4"
-	echomiddleware "github.com/labstack/echo/v4/middleware"
+	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
 
 	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/config"
 	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/database"
 	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/handler"
-	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/lib/utils/validator"
 	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/middleware"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/modules/auth"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/modules/notifications"
+	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/modules/users"
 	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/repository"
 	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/server"
-	"github.com/gustavoz65/go-backend-boilerplate/backend/internal/service"
 )
 
-// New creates and configures the Echo router for the core boilerplate modules.
-func New(cfg *config.Config, db *database.Database, logger *zerolog.Logger, srv *server.Server) *echo.Echo {
-	e := echo.New()
-	e.HideBanner = true
-	e.HidePort = true
-	e.Validator = validator.New()
+// New cria e configura o router Gin, compondo as rotas registradas por cada
+// módulo de domínio (internal/modules/*). O router principal não conhece
+// os detalhes de cada domínio — apenas monta os middlewares compartilhados
+// e chama o RegisterRoutes de cada módulo.
+func New(cfg *config.Config, db *database.Database, logger *zerolog.Logger, srv *server.Server) *gin.Engine {
+	r := gin.New()
 
-	e.HTTPErrorHandler = middleware.ErrorHandler(logger)
-	e.Use(echomiddleware.RequestID())
-	e.Use(middleware.RecoveryMiddleware(logger))
-	e.Use(middleware.LoggerMiddleware(logger))
-	e.Use(middleware.SecurityHeadersMiddleware())
-	e.Use(middleware.CORSMiddleware(cfg.Server.CORSAllowedOrigins))
-	e.Use(middleware.CSRFTokenGenerator())
+	r.Use(middleware.RequestID())
+	r.Use(middleware.RecoveryMiddleware(logger))
+	r.Use(middleware.LoggerMiddleware(logger))
+	r.Use(middleware.SecurityHeadersMiddleware())
+	r.Use(middleware.CORSMiddleware(cfg.Server.CORSAllowedOrigins))
+	r.Use(middleware.CSRFTokenGenerator())
+	r.Use(middleware.ErrorHandler(logger))
 
+	// Repositórios
 	userRepo := repository.NewUserRepository(db, logger)
 	providerRepo := repository.NewOAuthProviderRepository(db, logger)
 	notificationRepo := repository.NewNotificationRepository(db, logger)
 	auditLogRepo := repository.NewAuditLogRepository(db, logger)
 
-	authService := service.NewAuthService(userRepo, providerRepo, srv.FirebaseClient, cfg, logger)
-	userService := service.NewUserService(userRepo, logger)
-	notificationService := service.NewNotificationService(notificationRepo, logger)
+	// Services + handlers de cada módulo
+	authService := auth.NewService(userRepo, providerRepo, srv.FirebaseClient, cfg, logger)
+	userService := users.NewService(userRepo, logger)
+	notificationService := notifications.NewService(notificationRepo, logger)
 
-	authHandler := handler.NewAuthHandler(authService)
-	userHandler := handler.NewUserHandler(userService)
-	notificationHandler := handler.NewNotificationHandler(notificationService)
+	authHandler := auth.NewHandler(authService)
+	userHandler := users.NewHandler(userService)
+	notificationHandler := notifications.NewHandler(notificationService)
 	healthHandler := handler.NewHealthHandler(srv)
 
-	e.GET("/health", healthHandler.CheckHandler)
+	r.GET("/health", healthHandler.CheckHandler)
 
-	api := e.Group("/api/v1")
-	authRateLimiter := middleware.AuthRateLimit(srv.Redis)
-	refreshRateLimiter := middleware.RefreshRateLimit(srv.Redis)
+	api := r.Group("/api/v1")
+
 	csrfTokenGen := middleware.CSRFTokenGenerator()
+	api.GET("/csrf-token", csrfTokenGen, func(c *gin.Context) {
+		c.JSON(http.StatusOK, map[string]string{"csrf_token": c.Writer.Header().Get("X-CSRF-Token")})
+	})
 
-	api.GET("/csrf-token", func(c echo.Context) error {
-		token := c.Response().Header().Get("X-CSRF-Token")
-		return c.JSON(http.StatusOK, map[string]string{"csrf_token": token})
-	}, csrfTokenGen)
-
-	authWithRL := api.Group("/auth", authRateLimiter, csrfTokenGen)
-	authRefresh := api.Group("/auth", refreshRateLimiter, csrfTokenGen)
-
-	authWithRL.POST("/register", authHandler.Register)
-	authWithRL.POST("/login", authHandler.Login)
-	authWithRL.POST("/social/login", authHandler.SocialLogin)
-	authRefresh.POST("/refresh", authHandler.RefreshToken)
-	authRefresh.POST("/logout", authHandler.Logout)
-
-	authMiddleware := middleware.AuthMiddleware(authService)
+	// Middlewares compartilhados entre os módulos
+	requireAuth := auth.RequireAuth(authService)
 	auditMiddleware := middleware.NewAuditMiddleware(auditLogRepo, logger)
 	csrfMiddleware := middleware.CSRFMiddleware()
 	mutationRL := middleware.MutationRateLimit(srv.Redis)
 	readRL := middleware.ReadRateLimit(srv.Redis)
 
-	authProtected := api.Group("/auth", authMiddleware, auditMiddleware.Handler(), csrfMiddleware)
-	authProtected.POST("/change-password", authHandler.ChangePassword, mutationRL)
-	authProtected.POST("/set-password", authHandler.SetPassword, mutationRL)
-	authProtected.POST("/social/link", authHandler.LinkProvider, mutationRL)
-	authProtected.DELETE("/social/:provider", authHandler.UnlinkProvider, mutationRL)
-	authProtected.GET("/social/providers", authHandler.GetLinkedProviders, readRL)
+	auth.RegisterRoutes(api, authHandler, auth.Middlewares{
+		AuthRateLimit:    middleware.AuthRateLimit(srv.Redis),
+		RefreshRateLimit: middleware.RefreshRateLimit(srv.Redis),
+		CSRFTokenGen:     csrfTokenGen,
+		RequireAuth:      requireAuth,
+		Audit:            auditMiddleware.Handler(),
+		CSRF:             csrfMiddleware,
+		MutationRL:       mutationRL,
+		ReadRL:           readRL,
+	})
 
-	users := api.Group("/users", authMiddleware, auditMiddleware.Handler(), csrfMiddleware)
-	users.GET("/me", userHandler.GetMe, readRL)
-	users.PUT("/me", userHandler.UpdateMe, mutationRL)
-	users.DELETE("/me", userHandler.DeactivateMe, mutationRL)
-	users.GET("/settings", userHandler.GetSettings, readRL)
-	users.PUT("/settings", userHandler.UpdateSettings, mutationRL)
-	users.PATCH("/me/onboarding-complete", userHandler.CompleteOnboarding, mutationRL)
+	users.RegisterRoutes(api, userHandler, users.Middlewares{
+		RequireAuth: requireAuth,
+		Audit:       auditMiddleware.Handler(),
+		CSRF:        csrfMiddleware,
+		MutationRL:  mutationRL,
+		ReadRL:      readRL,
+	})
 
-	notifications := api.Group("/notifications", authMiddleware, auditMiddleware.Handler(), csrfMiddleware)
-	notifications.GET("", notificationHandler.GetAll, readRL)
-	notifications.GET("/unread", notificationHandler.GetUnread, readRL)
-	notifications.GET("/unread/count", notificationHandler.GetUnreadCount, readRL)
-	notifications.PATCH("/:id/read", notificationHandler.MarkAsRead, mutationRL)
-	notifications.PATCH("/read-all", notificationHandler.MarkAllAsRead, mutationRL)
-	notifications.DELETE("/:id", notificationHandler.Delete, mutationRL)
+	notifications.RegisterRoutes(api, notificationHandler, notifications.Middlewares{
+		RequireAuth: requireAuth,
+		Audit:       auditMiddleware.Handler(),
+		CSRF:        csrfMiddleware,
+		MutationRL:  mutationRL,
+		ReadRL:      readRL,
+	})
 
-	return e
+	return r
 }
